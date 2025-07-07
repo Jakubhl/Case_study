@@ -363,7 +363,7 @@ int main() {
     printNum(ai + bi);
     printNum(ai - bi);
 
-    std::cout << "Press Return to close the window..." << std::endl;
+    std::cout << "Press return to close the window..." << std::endl;
     std::cin.get();  // čeká na stisk klávesy
 
     return 0;
