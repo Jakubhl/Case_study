@@ -50,7 +50,7 @@ inline std::ostream& operator<<(std::ostream& os, const CNumber& num) {
     return os;
 }
 
-/// Třída pro práci s celými čísly s libovolnou přesností
+/// Třída pro práci s celými čísly
 class CInt : public CNumber {
 public:
     // Konstruktor z řetězce
@@ -106,7 +106,7 @@ public:
 
     // Přetížení operátoru -
     CInt operator-(const CInt& other) const {
-        // Zatím řešíme pouze a - b pro a > b, obě kladná
+        // Ošetřeno i pro záporný výsledek – pokud a < b, výsledek bude záporný
         if (m_negative || other.m_negative) {
             // (-a) - b = -(a + b)
             // a - (-b) = a + b
@@ -184,6 +184,7 @@ private:
     bool m_negative = false;    // Znaménko
 };
 
+/// Třída pro práci s desetinnými čísly
 class CFloat : public CNumber {
 public:
     explicit CFloat(const std::string& value) {
@@ -218,7 +219,7 @@ public:
         removeTrailingZeros();
         removeLeadingZeros();
     }
-
+    // Přetížení operátoru +
     CFloat operator+(const CFloat& other) const {
         CFloat result("0.0");
         result.m_intPart.clear();
@@ -260,51 +261,49 @@ public:
         result.removeLeadingZeros();
         return result;
     }
-
+    
+    // Přetížení operátoru -
     CFloat operator-(const CFloat& other) const {
-        CFloat result("0.0");
-        result.m_intPart.clear();
-        result.m_fracPart.clear();
-        result.m_negative = false;
+        if (*this < other) {
+            CFloat result = other - *this;
+            result.m_negative = true;
+            return result;
+        }
 
-        // 1. Zarovnat desetinné části
+        // Zarovnání desetinné části
         size_t maxFrac = std::max(m_fracPart.size(), other.m_fracPart.size());
         std::vector<int> a_frac = m_fracPart;
         std::vector<int> b_frac = other.m_fracPart;
         a_frac.resize(maxFrac, 0);
         b_frac.resize(maxFrac, 0);
 
-        // 2. Odečti desetinnou část zprava doleva
+        CFloat result("0.0");
+        result.m_intPart.clear();
+        result.m_fracPart.clear();
         int borrow = 0;
+
         for (int i = static_cast<int>(maxFrac) - 1; i >= 0; --i) {
             int diff = a_frac[i] - b_frac[i] - borrow;
             if (diff < 0) {
                 diff += 10;
                 borrow = 1;
-            } else {
-                borrow = 0;
-            }
+            } else borrow = 0;
             result.m_fracPart.insert(result.m_fracPart.begin(), diff);
         }
 
-        // 3. Zarovnání celé části
+        // Zarovnat celé části
         size_t maxInt = std::max(m_intPart.size(), other.m_intPart.size());
         std::vector<int> a_int = m_intPart;
         std::vector<int> b_int = other.m_intPart;
         a_int.resize(maxInt, 0);
         b_int.resize(maxInt, 0);
 
-        // 4. Odečíst celé číslice zprava doleva
         for (size_t i = 0; i < maxInt; ++i) {
-            int digitA = a_int[i];
-            int digitB = b_int[i];
-            int diff = digitA - digitB - borrow;
+            int diff = a_int[i] - b_int[i] - borrow;
             if (diff < 0) {
                 diff += 10;
                 borrow = 1;
-            } else {
-                borrow = 0;
-            }
+            } else borrow = 0;
             result.m_intPart.push_back(diff);
         }
 
@@ -312,6 +311,26 @@ public:
         result.removeLeadingZeros();
         return result;
     }
+
+    bool operator<(const CFloat& other) const {
+        if (m_intPart.size() != other.m_intPart.size())
+            return m_intPart.size() < other.m_intPart.size();
+        for (size_t i = m_intPart.size(); i-- > 0;) {
+            if (m_intPart[i] != other.m_intPart[i])
+                return m_intPart[i] < other.m_intPart[i];
+        }
+
+        size_t maxFrac = std::max(m_fracPart.size(), other.m_fracPart.size());
+        for (size_t i = 0; i < maxFrac; ++i) {
+            int a = (i < m_fracPart.size()) ? m_fracPart[i] : 0;
+            int b = (i < other.m_fracPart.size()) ? other.m_fracPart[i] : 0;
+            if (a != b)
+                return a < b;
+        }
+
+        return false; // rovnost
+    }
+
     void print(std::ostream& os) const override {
         if (m_negative) os << "-";
 
@@ -357,14 +376,16 @@ int main() {
     const CFloat bf("8.21564564456123132123132146544646546546546528564");
     printNum(af + bf);
     printNum(af - bf);
+    printNum(bf - af);
 
     const CInt ai("132115465615664583461973866555483255524643727514673745194967728");
     const CInt bi("55376461616151515944594954467327731717171727158844");
     printNum(ai + bi);
     printNum(ai - bi);
+    printNum(bi - ai);
 
-    std::cout << "Press return to close the window..." << std::endl;
-    std::cin.get();  // čeká na stisk klávesy
+    // std::cout << "Press return to close the window..." << std::endl;
+    // std::cin.get();  // čeká na stisk klávesy
 
     return 0;
 }
